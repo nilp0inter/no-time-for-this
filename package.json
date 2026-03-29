@@ -65,6 +65,8 @@
       "weather_temp_min": 109,
       "weather_temp_max": 110,
       "weather_city": 111,
+      "weather_desc": 112,
+      "weather_temp_real": 113,
       "trans_abbr_sunday": 500,
       "trans_abbr_monday": 501,
       "trans_abbr_tuesday": 502,

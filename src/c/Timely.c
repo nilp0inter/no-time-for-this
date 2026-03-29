@@ -127,6 +127,8 @@ static bool showing_statusbar = true;
 #define AK_WEATHER_TEMP_MIN     109
 #define AK_WEATHER_TEMP_MAX     110
 #define AK_WEATHER_CITY         111
+#define AK_WEATHER_DESC         112
+#define AK_WEATHER_TEMP_REAL    113
 
 #define AK_TRANS_ABBR_SUNDAY    500
 #define AK_TRANS_ABBR_MONDAY    501
@@ -210,10 +212,12 @@ static bool showing_statusbar = true;
 
 weather_data weather = {
   .current    = 999,
+  .temp_real  = 999,
   .condition = {'h'},
   .temp_min   = 999,
   .temp_max   = 999,
   .city       = "",
+  .description = "",
   .requests = 0,
   .failures = 0,
 };
@@ -373,16 +377,18 @@ void setInvColors(GContext* ctx) {
 
 void weather_layer_update_callback(Layer *me, GContext* ctx) {
   (void)me; // 144x72
-  static char temp_current[16] = "N/A";
+  static char temp_current[24] = "N/A";
   static char temp_range[24] = "";
   static char cond_current[] = "0";
-  if (weather.current < 900) {
+  if (weather.temp_real < 900 && weather.current < 900) {
+    snprintf(temp_current, sizeof(temp_current), "%d/%d\u00b0", weather.temp_real, weather.current);
+  } else if (weather.current < 900) {
     snprintf(temp_current, sizeof(temp_current), "%d\u00b0", weather.current);
   } else {
     snprintf(temp_current, sizeof(temp_current), "N/A");
   }
   if (weather.temp_min < 900 && weather.temp_max < 900) {
-    snprintf(temp_range, sizeof(temp_range), "%d\u00b0 / %d\u00b0", weather.temp_min, weather.temp_max);
+    snprintf(temp_range, sizeof(temp_range), "[%d,%d]\u00b0", weather.temp_min, weather.temp_max);
   } else {
     temp_range[0] = '\0';
   }
@@ -391,12 +397,14 @@ void weather_layer_update_callback(Layer *me, GContext* ctx) {
   setColors(ctx);
   // Weather icon - left side
   graphics_draw_text(ctx, cond_current, climacons, GRect(4,22,34,34), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-  // Current temperature - large, right of icon
-  graphics_draw_text(ctx, temp_current, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(40,20,60,32), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
-  // City name - right side
-  graphics_draw_text(ctx, weather.city, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(90,26,52,18), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
-  // Min/Max temps - below current temp
-  graphics_draw_text(ctx, temp_range, fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect(40,48,100,22), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  // Weather description - under icon, half screen width
+  graphics_draw_text(ctx, weather.description, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0,52,76,18), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  // Real~Feels temperature - large, right of icon
+  graphics_draw_text(ctx, temp_current, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(40,20,102,32), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  // Min/Max temps - right side
+  graphics_draw_text(ctx, temp_range, fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect(90,24,52,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
+  // City name - bottom right, aligned with description
+  graphics_draw_text(ctx, weather.city, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(76,52,66,18), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
   if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather redrawing: %d, %s", weather.current, weather.condition); }
 }
 
@@ -1397,6 +1405,10 @@ void in_weather_handler(DictionaryIterator *received, void *context) {
     if (appkey != NULL)     { weather.temp_max = appkey->value->int16; }
     appkey = dict_find(received, AK_WEATHER_CITY);
     if (appkey != NULL)     { strncpy(weather.city, appkey->value->cstring, sizeof(weather.city)-1); }
+    appkey = dict_find(received, AK_WEATHER_DESC);
+    if (appkey != NULL)     { strncpy(weather.description, appkey->value->cstring, sizeof(weather.description)-1); }
+    appkey = dict_find(received, AK_WEATHER_TEMP_REAL);
+    if (appkey != NULL)     { weather.temp_real = appkey->value->int16; }
     layer_mark_dirty(weather_layer);
     if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather received [%d/%d]: %d, %s", weather.failures, weather.requests, weather.current, weather.condition); }
     if (weather.current == 999) {

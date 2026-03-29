@@ -282,7 +282,7 @@ function getWeatherFromWoeid(woeid) {
           temperature = condition.temp;
           icon = YWclimacon[condition.code];
           console.log("YW Weather: " + temperature + "; " + icon + " = " + condition.text);
-          sendWeather(Number(temperature), icon, 999, 999, "");
+          sendWeather(Number(temperature), 999, icon, 999, 999, "", "");
         }
       } else {
         console.log("Error");
@@ -292,17 +292,19 @@ function getWeatherFromWoeid(woeid) {
   req.send(null);
 }
 
-function sendWeather(temp, cond_icon, temp_min, temp_max, city) {
+function sendWeather(temp_feels, temp_real, cond_icon, temp_min, temp_max, city, cond_desc) {
   if (isItNight() && cond_icon == CLIMACON['sun']) { cond_icon = getMoonIcon(); }
   if (cond_icon == CLIMACON['moon']) { cond_icon = getMoonIcon(); }
-  console.log('Sending Weather: ' + temp + '  ' + cond_icon);
+  console.log('Sending Weather: ' + temp_real + '~' + temp_feels + '  ' + cond_icon);
   Pebble.sendAppMessage({
     message_type: 106,
-    weather_temp: temp,
+    weather_temp: temp_feels,
+    weather_temp_real: temp_real,
     weather_cond: cond_icon,
     weather_temp_min: temp_min || 999,
     weather_temp_max: temp_max || 999,
     weather_city: city || "",
+    weather_desc: cond_desc || "",
   });
 }
 
@@ -424,7 +426,8 @@ function fetchOWMWeather(latitude, longitude) {
         var temp, temp_min, temp_max, icon, city;
         if (response && response.weather && response.weather.length > 0) {
           var weatherResult = response;
-          temp = Math.round(weatherResult.main.temp);
+          var temp_feels = Math.round(weatherResult.main.feels_like);
+          var temp_real = Math.round(weatherResult.main.temp);
           temp_min = Math.round(weatherResult.main.temp_min);
           temp_max = Math.round(weatherResult.main.temp_max);
           cond_main = weatherResult.weather[0].main;
@@ -432,8 +435,8 @@ function fetchOWMWeather(latitude, longitude) {
           cond_icon = OWMclimacon[weatherResult.weather[0].id];
           city = weatherResult.name;
 
-            console.log("OWM Weather: " + temp + "; " + cond_icon + " = " + cond_main + ", " + cond_desc);
-          sendWeather(temp, cond_icon, temp_min, temp_max, city);
+            console.log("OWM Weather: " + temp_real + "~" + temp_feels + "; " + cond_icon + " = " + cond_main + ", " + cond_desc);
+          sendWeather(temp_feels, temp_real, cond_icon, temp_min, temp_max, city, cond_desc);
         } else {
           for(var i in dataObj) {
                 console.log('dO:' + i + ' --- ' + dataObj[i]);
@@ -457,7 +460,7 @@ function weatherLocationSuccess(pos) {
 
 function locationError(err) {
   console.warn('Weather: location error (' + err.code + '): ' + err.message);
-  sendWeather(998, CLIMACON['compass'], 998, 998, "");
+  sendWeather(998, 998, CLIMACON['compass'], 998, 998, "", "");
 }
 
 function isItNight() {
