@@ -1,5 +1,5 @@
 {
-  description = "No Time For This - A Pebble watchface";
+  description = "No Time For This - A Pebble watchface based on Timely";
 
   inputs = {
     pebble.url = "github:pebble-dev/pebble.nix";
@@ -26,8 +26,6 @@
             echo "    task build              Build .pbw with nix"
             echo "    task emulator           Run in basalt emulator"
             echo "    task emulator:aplite    Run in aplite emulator"
-            echo "    task emulator:chalk     Run in chalk (round) emulator"
-            echo "    task emulator:diorite   Run in diorite emulator"
             echo "    task logs               Show live emulator logs"
             echo "    task install            Install on watch (PHONE_IP=...)"
             echo "    task sideload           Copy .pbw for manual install"
@@ -40,8 +38,8 @@
           name = "no-time-for-this";
           src = ./.;
           type = "watchface";
-          description = "A Pebble watchface that shows everything except the time.";
-          releaseNotes = "Initial release";
+          description = "A Pebble watchface based on Timely by cynorg.";
+          releaseNotes = "Replaced with Timely watchface";
           screenshots = {
             aplite = [ "screenshots/aplite.png" ];
           };

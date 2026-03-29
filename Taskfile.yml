@@ -22,18 +22,6 @@ tasks:
       - pebble build
       - pebble install --emulator aplite
 
-  emulator:chalk:
-    desc: Build and run in the Pebble emulator (chalk/round)
-    cmds:
-      - pebble build
-      - pebble install --emulator chalk
-
-  emulator:diorite:
-    desc: Build and run in the Pebble emulator (diorite)
-    cmds:
-      - pebble build
-      - pebble install --emulator diorite
-
   logs:
     desc: Show live logs from the emulator
     cmds:
