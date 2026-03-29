@@ -263,21 +263,24 @@ static void calendar_draw(Layer *layer, GContext *ctx) {
   GFont day_font       = fonts_get_system_font(FONT_KEY_GOTHIC_14);
   GFont day_font_bold  = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
 
+  time_t now = time(NULL);
+  struct tm *today = localtime(&now);
+  int wday_mon = (today->tm_wday + 6) % 7;
+
   /* ── draw grid lines ─────────────────────── */
   int grid_w = CAL_COLS * cell_w;          /* actual grid width */
   int grid_top = CAL_TOP + CAL_HDR_H;
-  int grid_bot = grid_top + CAL_ROWS * CAL_ROW_H;
   graphics_context_set_stroke_color(ctx, GColorWhite);
 
-  /* horizontal lines (top of each row + bottom) */
-  for (int r = 0; r <= CAL_ROWS; r++) {
+  /* horizontal lines (top of each row, no bottom line) */
+  for (int r = 0; r < CAL_ROWS; r++) {
     int ly = grid_top + r * CAL_ROW_H;
-    if (ly >= b.size.h) ly = b.size.h - 1; /* keep bottom line visible */
     graphics_draw_line(ctx, GPoint(0, ly), GPoint(grid_w, ly));
   }
 
-  /* vertical lines */
-  for (int c = 0; c <= CAL_COLS; c++) {
+  /* vertical lines (internal dividers only, no side borders) */
+  int grid_bot = grid_top + CAL_ROWS * CAL_ROW_H;
+  for (int c = 1; c < CAL_COLS; c++) {
     int lx = c * cell_w;
     graphics_draw_line(ctx, GPoint(lx, grid_top), GPoint(lx, grid_bot));
   }
@@ -286,18 +289,15 @@ static void calendar_draw(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, GColorWhite);
   for (int c = 0; c < CAL_COLS; c++) {
     GRect cell = GRect(c * cell_w, CAL_TOP, cell_w, CAL_HDR_H);
-    graphics_draw_text(ctx, s_day_names[c], hdr_font, cell,
+    graphics_draw_text(ctx, s_day_names[c],
+                       c == wday_mon ? day_font_bold : hdr_font, cell,
                        GTextOverflowModeTrailingEllipsis,
                        GTextAlignmentCenter, NULL);
   }
-
-  time_t now = time(NULL);
-  struct tm *today = localtime(&now);
   int today_mday = today->tm_mday;
   int today_mon  = today->tm_mon;
   int today_year = today->tm_year;
 
-  int wday_mon = (today->tm_wday + 6) % 7;
   int days_back = wday_mon + 7;
 
   struct tm start = *today;
@@ -449,7 +449,7 @@ static void main_window_load(Window *window) {
 
   /* ── calendar ──────────────────────────────── */
   int cal_h = CAL_HDR_H + CAL_ROWS * CAL_ROW_H;
-  s_calendar_layer = layer_create(GRect(0, y, w, cal_h));
+  s_calendar_layer = layer_create(GRect(0, bounds.size.h - cal_h, w, cal_h));
   layer_set_update_proc(s_calendar_layer, calendar_draw);
   layer_add_child(root, s_calendar_layer);
 
