@@ -62,6 +62,9 @@
       "request_weather": 106,
       "weather_temp": 107,
       "weather_cond": 108,
+      "weather_temp_min": 109,
+      "weather_temp_max": 110,
+      "weather_city": 111,
       "trans_abbr_sunday": 500,
       "trans_abbr_monday": 501,
       "trans_abbr_tuesday": 502,
@@ -150,12 +153,6 @@
           "characterRegex": "[ -~\\u0400-\\u0460\\u00c0-\\u00d6\\u00d8-\\u00f6\\u00f8-\\u00ff\\u2026]",
           "name": "FONT_UNICODE_16",
           "file": "fonts/unifont_latest.ttf"
-        },
-        {
-          "type": "font",
-          "name": "FONT_FUTURA_CONDENSED_48",
-          "characterRegex": "[0-9:]",
-          "file": "fonts/futura_condensed_bold-webfont.ttf"
         },
         {
           "type": "font",

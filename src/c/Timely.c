@@ -21,10 +21,6 @@ static Window *window;
 static Layer *battery_layer;
 static Layer *datetime_layer;
 static TextLayer *date_layer;
-static TextLayer *time_layer;
-static TextLayer *week_layer;
-static TextLayer *ampm_layer;
-static TextLayer *day_layer;
 static Layer *calendar_layer;
 static Layer *splash_layer;
 static Layer *weather_layer;
@@ -66,7 +62,6 @@ static bool vibe_suppression = true;
 #define TIMEZONE_UNINITIALIZED 80
 static int8_t timezone_offset = TIMEZONE_UNINITIALIZED;
 struct tm *currentTime;
-static int8_t seconds_shown = 0;
 static bool dnd_period_active = false;
 static bool vibe_period_active = false;
 static bool showing_statusbar = true;
@@ -129,6 +124,9 @@ static bool showing_statusbar = true;
 #define AK_REQUEST_WEATHER      106
 #define AK_WEATHER_TEMP         107
 #define AK_WEATHER_COND         108
+#define AK_WEATHER_TEMP_MIN     109
+#define AK_WEATHER_TEMP_MAX     110
+#define AK_WEATHER_CITY         111
 
 #define AK_TRANS_ABBR_SUNDAY    500
 #define AK_TRANS_ABBR_MONDAY    501
@@ -213,23 +211,26 @@ static bool showing_statusbar = true;
 weather_data weather = {
   .current    = 999,
   .condition = {'h'},
+  .temp_min   = 999,
+  .temp_max   = 999,
+  .city       = "",
   .requests = 0,
   .failures = 0,
 };
 
 persist settings = {
   .version    = 12,
-  .inverted   = 0, // no, dark
+  .inverted   = 1, // yes, light
   .day_invert = 1, // yes
   .grid       = 1, // yes
   .vibe_hour  = 0, // no
-  .dayOfWeekOffset = 0, // 0 - 6, Sun - Sat
-  .date_format = 0, // Month DD, YYYY
+  .dayOfWeekOffset = 1, // 0 - 6, Sun - Sat (1 = Monday)
+  .date_format = 236, // YYYY-MM-DD
   .show_am_pm  = 0, // no AM/PM       [0:Hide, 1:AM/PM, 2:TZ,    3:Week,  4:DoY,  5:DLiY,   6:Seconds]
   .show_day    = 0, // no day name    [0:Hide, 1:Day,   2:Month, 3:TZ,    4:Week, 5:AM/PM   6:DoY/DLiY]
   .show_week   = 0, // no week number [0:Hide, 1:Week,  2:TZ,    3:AM/PM, 4:DoY,  5:DLiY,   6:Seconds]
   .week_format = 0, // ISO 8601
-  .vibe_pat_disconnect = 2, // double vibe
+  .vibe_pat_disconnect = 0, // no vibe
   .vibe_pat_connect = 0, // no vibe
   .strftime_format = "%Y-%m-%d",
   .track_battery = 0, // no battery tracking by default
@@ -291,7 +292,7 @@ persist_adv_settings adv_settings = {
   .clock2_tz = 0,       // 2nd clock: tz offset in 15 minute increments
   .clock2_desc = { "Second Clock" }, // 2nd clock: desc / city name of 2nd clock
   // Weather
-  .weather_format = 0,  // Weather: 0: fahrenheit, 1: celsius
+  .weather_format = 1,  // Weather: 0: fahrenheit, 1: celsius
   .weather_update = 15, // Weather: minutes between weather updates [must divide into 60 cleanly]
   .weather_lat = "",    // latitude for 'static' weather lookups (GPS disabled)
   .weather_lon = "",   // longitude for 'static' weather lookups (GPS disabled)
@@ -373,24 +374,36 @@ void setInvColors(GContext* ctx) {
 void weather_layer_update_callback(Layer *me, GContext* ctx) {
   (void)me; // 144x72
   static char temp_current[16] = "N/A";
+  static char temp_range[24] = "";
   static char cond_current[] = "0";
   if (weather.current < 900) {
     snprintf(temp_current, sizeof(temp_current), "%d\u00b0", weather.current);
   } else {
     snprintf(temp_current, sizeof(temp_current), "N/A");
   }
+  if (weather.temp_min < 900 && weather.temp_max < 900) {
+    snprintf(temp_range, sizeof(temp_range), "%d\u00b0 / %d\u00b0", weather.temp_min, weather.temp_max);
+  } else {
+    temp_range[0] = '\0';
+  }
   snprintf(cond_current, sizeof(cond_current), "%s", weather.condition);
 
   setColors(ctx);
-  graphics_draw_text(ctx, cond_current, climacons, GRect(2,16,34,34), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL); 
-  graphics_draw_text(ctx, temp_current, fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(2,42,36,36), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL); 
+  // Weather icon - left side
+  graphics_draw_text(ctx, cond_current, climacons, GRect(4,22,34,34), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  // Current temperature - large, right of icon
+  graphics_draw_text(ctx, temp_current, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(40,20,60,32), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  // City name - right side
+  graphics_draw_text(ctx, weather.city, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(90,26,52,18), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
+  // Min/Max temps - below current temp
+  graphics_draw_text(ctx, temp_range, fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect(40,48,100,22), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
   if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather redrawing: %d, %s", weather.current, weather.condition); }
 }
 
 void splash_layer_update_callback(Layer *me, GContext* ctx) {
     (void)me; // 144x72
     setColors(ctx);
-    graphics_draw_text(ctx, "Timely", fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(0,0,144,36), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL); 
+    graphics_draw_text(ctx, "No Time", fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(0,0,144,36), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
     graphics_draw_text(ctx, CONFIG_VERSION, fonts_get_system_font(FONT_KEY_GOTHIC_28), GRect(0,32,144,36), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL); 
 }
 
@@ -701,7 +714,7 @@ void update_date_text() {
         break;
       }
     } else { // non-localized date formats, straight strftime function calls
-      if ((settings.date_format>=195)||(settings.date_format<=254)) { // load from table
+      if ((settings.date_format>=195)&&(settings.date_format<=254)) { // load from table
         strftime(date_text, sizeof(date_text), datestr[settings.date_format-195], currentTime);
       } else if (settings.date_format==255) {
         strftime(date_text, sizeof(date_text), settings.strftime_format, currentTime);  
@@ -713,31 +726,6 @@ void update_date_text() {
     text_layer_set_text(date_layer, date_string);
 }
 
-void update_time_text() {
-  // Need to be static because used by the system later.
-  static char time_text[] = "00:00";
-
-  char *time_format;
-
-  if (clock_is_24h_style()) {
-    time_format = "%R";
-  } else {
-    time_format = "%I:%M";
-  }
-
-  strftime(time_text, sizeof(time_text), time_format, currentTime);
-
-  // Kludge to handle lack of non-padded hour format string
-  // for twelve hour clock.
-  if (!clock_is_24h_style() && (time_text[0] == '0')) {
-    memmove(time_text, &time_text[1], sizeof(time_text) - 1);
-  }
-
-  // I would love to just use clock_copy_time_string, but it refuses to center properly in 12-hour time (see Kludge above).
-  //clock_copy_time_string(time_text, sizeof(time_text));
-  text_layer_set_text(time_layer, time_text);
-
-}
 
 void update_day_text(TextLayer *which_layer) {
   text_layer_set_text(which_layer, lang_days.DaysOfWeek[currentTime->tm_wday]);
@@ -747,172 +735,6 @@ void update_month_text(TextLayer *which_layer) {
   text_layer_set_text(which_layer, lang_months.monthsNames[currentTime->tm_mon]);
 }
 
-void update_week_text(TextLayer *which_layer) {
-  static char week_text[] = "W00";
-  char week_format[] = "W%V"; // V = ISO 8601 week number (00-53)
-  if (settings.week_format == 1) {
-    // U = Week number with the first Sunday as the first day of week one (00-53)
-    week_format[2] = 'U';
-  } else if (settings.week_format == 2) {
-    // W = Week number with the first Monday as the first day of week one (00-53)
-    week_format[2] = 'W';
-  }
-  strftime(week_text, sizeof(week_text), week_format, currentTime);
-  text_layer_set_text(which_layer, week_text);
-}
-
-void update_ampm_text(TextLayer *which_layer) {
-  if (currentTime->tm_hour < 12 ) {
-    text_layer_set_text(which_layer, lang_gen.abbrTime[0]); //  0-11 AM
-  } else {
-    text_layer_set_text(which_layer, lang_gen.abbrTime[1]); // 12-23 PM
-  }
-}
-
-void update_seconds_text(TextLayer *which_layer) {
-  static char seconds_text[] = "00"; // 00-61
-  strftime(seconds_text, sizeof(seconds_text), "%S", currentTime);
-  text_layer_set_text(which_layer, seconds_text);
-}
-
-char * get_doy_text() {
-  static char doy_text[] = "D000";
-  strftime(doy_text, sizeof(doy_text), "D%j", currentTime);
-  return doy_text;
-}
-
-char * get_dliy_text() {
-  static char dliy_text[] = "R000";
-  int daysThisFeb = daysInMonth(1, currentTime->tm_year + 1900);
-  int daysThisYear = 365;
-  if (daysThisFeb == 29) { daysThisYear = 366; }
-  int daysSinceJanFirst = currentTime->tm_yday; // 0-365 inclusive
-  int daysLeftThisYear = daysThisYear - daysSinceJanFirst - 1;
-  snprintf(dliy_text, sizeof(dliy_text), "R%03d", daysLeftThisYear);
-  return dliy_text;
-}
-
-void update_doy_text(TextLayer *which_layer) {
-  text_layer_set_text(which_layer, get_doy_text());
-}
-
-void update_dliy_text(TextLayer *which_layer) {
-  text_layer_set_text(which_layer, get_dliy_text());
-}
-
-void update_doy_dliy_text(TextLayer *which_layer) {
-  static char doy_dliy_text[] = "D000/R000";
-  snprintf(doy_dliy_text, sizeof(doy_dliy_text), "%s/%s", get_doy_text(), get_dliy_text());
-  text_layer_set_text(which_layer, doy_dliy_text);
-}
-
-void update_timezone_text(TextLayer *which_layer) {
-  static char timezone_text[16];
-  int tz_hours = 0;
-  int tz_mins  = 0;
-  tz_mins  = timezone_offset % 4;
-  tz_hours = (timezone_offset - tz_mins)/ 4;
-  tz_mins  = tz_mins * 15;
-  if (timezone_offset == TIMEZONE_UNINITIALIZED) {
-    snprintf(timezone_text, sizeof(timezone_text), "UTC ?");
-  } else if (timezone_offset > 0) {
-    if (tz_mins == 0) {
-      //snprintf(timezone_text, sizeof(timezone_text), "UTC-%d:00", tz_hours);
-      snprintf(timezone_text, sizeof(timezone_text), "UTC-%d", tz_hours);
-    } else {
-      snprintf(timezone_text, sizeof(timezone_text), "UTC-%d:%d", tz_hours, tz_mins);
-    }
-  } else {
-    if (tz_mins == 0) {
-      //snprintf(timezone_text, sizeof(timezone_text), "UTC+%d:00", abs(tz_hours));
-      snprintf(timezone_text, sizeof(timezone_text), "UTC+%d", abs(tz_hours));
-    } else {
-      snprintf(timezone_text, sizeof(timezone_text), "UTC+%d:%d", abs(tz_hours), abs(tz_mins));
-    }
-  }
-  text_layer_set_text(which_layer, timezone_text);
-}
-
-void process_show_week() {
-  // LEFT
-  switch ( settings.show_week ) {
-  case 0: // Hide
-    //layer_set_hidden(text_layer_get_layer(week_layer), true);
-    return;
-  case 1: // Show Week
-    update_week_text(week_layer);
-    break;
-  case 2: // Show Timezone
-    update_timezone_text(week_layer);
-    break;
-  case 3: // Show AM/PM
-    update_ampm_text(week_layer);
-    break;
-  case 4: // Show Day of Year
-    update_doy_text(week_layer);
-    break;
-  case 5: // Show Days Left in Year
-    update_dliy_text(week_layer);
-    break;
-  case 6: // Show Seconds
-    update_seconds_text(week_layer);
-    break;
-  }
-}
-
-void process_show_day() {
-  // MIDDLE
-  switch ( settings.show_day ) {
-  case 0: // Hide
-    //layer_set_hidden(text_layer_get_layer(day_layer), true);
-    return;
-  case 1: // Show Day
-    update_day_text(day_layer);
-    break;
-  case 2: // Show Month
-    update_month_text(day_layer);
-    break;
-  case 3: // Show Timezone
-    update_timezone_text(day_layer);
-    break;
-  case 4: // Show Week
-    update_week_text(day_layer);
-    break;
-  case 5: // Show AM/PM
-    update_ampm_text(day_layer);
-    break;
-  case 6: // Show DoY/DLiY
-    update_doy_dliy_text(day_layer);
-    break;
-  }
-}
-
-void process_show_ampm() {
-  // RIGHT
-  switch ( settings.show_am_pm ) {
-  case 0: // Hide
-    //layer_set_hidden(text_layer_get_layer(ampm_layer), true);
-    return;
-  case 1: // Show AM/PM
-    update_ampm_text(ampm_layer);
-    break;
-  case 2: // Show Timezone
-    update_timezone_text(ampm_layer);
-    break;
-  case 3: // Show Week
-    update_week_text(ampm_layer);
-    break;
-  case 4: // Show Day of Year
-    update_doy_text(ampm_layer);
-    break;
-  case 5: // Show Days Left in Year
-    update_dliy_text(ampm_layer);
-    break;
-  case 6: // Show Seconds
-    update_seconds_text(ampm_layer);
-    break;
-  }
-}
 
 void position_connection_layer() {
   static int connection_vert_offset = 0;
@@ -944,46 +766,10 @@ void position_date_layer() {
   layer_set_frame( text_layer_get_layer(date_layer), GRect(REL_CLOCK_DATE_LEFT, REL_CLOCK_DATE_TOP + date_vert_offset, REL_CLOCK_DATE_WIDTH, REL_CLOCK_DATE_HEIGHT) );
 }
 
-void position_day_layer() {
-  // potentially adjust the day position, depending on language/font
-  static int day_vert_offset = 0;
-  if ( strcmp(lang_gen.language,"RU") == 0 ) { // Unicode font w/ Cyrillic characters
-    day_vert_offset = -2;
-  } else { // Standard font
-    day_vert_offset = 0;
-  }
-  layer_set_frame( text_layer_get_layer(day_layer), GRect(REL_CLOCK_DATE_LEFT, REL_CLOCK_SUBTEXT_TOP + day_vert_offset, REL_CLOCK_DATE_WIDTH, REL_CLOCK_DATE_HEIGHT) );
-}
-
-void position_time_layer() {
-  // potentially adjust the clock position, if we've added/removed the week, day, or AM/PM layers
-  static int time_offset = 0;
-  static int weather_offset = 0;
-  if (!settings.show_day && !settings.show_week && !settings.show_am_pm) {
-    time_offset = 12;
-    weather_offset = 0;
-  } else {
-    time_offset = 2;
-    weather_offset = -10;
-  }
-  layer_set_frame( text_layer_get_layer(time_layer), GRect(REL_CLOCK_TIME_LEFT, REL_CLOCK_TIME_TOP + time_offset, DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT) );
-  layer_set_frame( weather_layer, GRect(REL_CLOCK_TIME_LEFT, weather_offset, DEVICE_WIDTH, LAYOUT_SLOT_HEIGHT) );
-}
-
-void update_datetime_subtext() {
-    process_show_week();
-    process_show_day();
-    process_show_ampm();
-    position_time_layer();
-}
-
 void datetime_layer_update_callback(Layer *me, GContext* ctx) {
     (void)me;
-    // TODO: these calls can probably be reduced/optimized, but apparently not removed entirely!
     setColors(ctx);
     update_date_text();
-    update_time_text();
-    update_datetime_subtext();
 }
 
 void statusbar_visible() {
@@ -1000,13 +786,9 @@ void statusbar_visible() {
 
 void toggle_weather() {
   if (adv_settings.weather_update) {
-    //if (!showing_statusbar) { text_layer_set_text_alignment(date_layer, GTextAlignmentRight); }
-    text_layer_set_text_alignment(time_layer, GTextAlignmentRight);
     layer_set_hidden(weather_layer, false);
   } else {
     layer_set_hidden(weather_layer, true);
-    text_layer_set_text_alignment(time_layer, GTextAlignmentCenter);
-    //text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
   }
 }
 
@@ -1016,11 +798,7 @@ void toggle_statusbar() {
     layer_set_hidden(statusbar, false);
     // date
     layer_add_child(datetime_layer, text_layer_get_layer(date_layer));
-    if (adv_settings.weather_update && (settings.show_day || settings.show_week || settings.show_am_pm)) {
-      text_layer_set_text_alignment(date_layer, GTextAlignmentRight);
-    } else {
-      text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
-    }
+    text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
     // icon(s)
     layer_add_child(statusbar, bitmap_layer_get_layer(bmp_charging_layer));
     //layer_set_frame( bitmap_layer_get_layer(bmp_charging_layer), GRect(STAT_CHRG_ICON_LEFT, STAT_CHRG_ICON_TOP, 20, 20) );
@@ -1326,15 +1104,13 @@ static void handle_bluetooth(bool connected) {
 static void set_unifont() {
   if ( strcmp(lang_gen.language,"RU") == 0 ) { // Unicode font w/ Cyrillic characters
     // set fonts...
-    text_layer_set_font(day_layer,unifont_16);
     text_layer_set_font(text_connection_layer, unifont_16);
     text_layer_set_font(date_layer, unifont_16);
     // set fonts, for calendar
     cal_normal = unifont_16; // fh = 16
-    cal_bold   = unifont_16_bold; // fh = 22 // XXX TODO need a bold unicode/unifont option... maybe invert it or box it or something?
+    cal_bold   = unifont_16_bold; // fh = 22
   } else { // Standard font
     // set fonts...
-    text_layer_set_font(day_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
     text_layer_set_font(text_connection_layer,fonts_get_system_font(FONT_KEY_GOTHIC_18));
     text_layer_set_font(date_layer,fonts_get_system_font(FONT_KEY_GOTHIC_24));
     // set fonts, for calendar
@@ -1344,8 +1120,6 @@ static void set_unifont() {
   // set offsets...
   position_connection_layer();
   position_date_layer();
-  position_time_layer();
-  position_day_layer();
 }
 
 bool period_check(uint8_t start_incr, uint8_t stop_incr, bool retval_on_equal) {
@@ -1473,36 +1247,7 @@ static void window_load(Window *window) {
   layer_set_update_proc(weather_layer, weather_layer_update_callback);
   layer_add_child(datetime_layer, weather_layer);
 
-  time_layer = text_layer_create( GRect(REL_CLOCK_TIME_LEFT, REL_CLOCK_TIME_TOP, DEVICE_WIDTH - 2, REL_CLOCK_TIME_HEIGHT) ); // see position_time_layer()
-  set_layer_attr_cfont(time_layer, RESOURCE_ID_FONT_FUTURA_CONDENSED_48, GTextAlignmentCenter);
   toggle_weather();
-  position_time_layer(); // make use of our whitespace, if we have it...
-  update_time_text();
-  layer_add_child(datetime_layer, text_layer_get_layer(time_layer));
-
-  week_layer = text_layer_create( GRect(4, REL_CLOCK_SUBTEXT_TOP, 140, 18) );
-  set_layer_attr_sfont(week_layer, FONT_KEY_GOTHIC_14, GTextAlignmentLeft);
-  layer_add_child(datetime_layer, text_layer_get_layer(week_layer));
-  if ( settings.show_week == 0 ) {
-    layer_set_hidden(text_layer_get_layer(week_layer), true);
-  }
-
-  day_layer = text_layer_create( GRect(4, REL_CLOCK_SUBTEXT_TOP, REL_CLOCK_DATE_WIDTH, 18) ); // see position_day_layer()
-  set_layer_attr_sfont(day_layer, FONT_KEY_GOTHIC_14, GTextAlignmentCenter);
-  position_day_layer(); // depends on font/language
-  layer_add_child(datetime_layer, text_layer_get_layer(day_layer));
-  if ( settings.show_day == 0 ) {
-    layer_set_hidden(text_layer_get_layer(day_layer), true);
-  }
-
-  ampm_layer = text_layer_create( GRect(0, REL_CLOCK_SUBTEXT_TOP, 140, 18) );
-  set_layer_attr_sfont(ampm_layer, FONT_KEY_GOTHIC_14, GTextAlignmentRight);
-  layer_add_child(datetime_layer, text_layer_get_layer(ampm_layer));
-  if ( settings.show_am_pm == 0 ) {
-    layer_set_hidden(text_layer_get_layer(ampm_layer), true);
-  }
-
-  update_datetime_subtext();
 
   text_connection_layer = text_layer_create( GRect(20+STAT_BT_ICON_LEFT, 0, 72, 22) ); // see position_connection_layer()
   set_layer_attr_sfont(text_connection_layer, FONT_KEY_GOTHIC_18, GTextAlignmentLeft);
@@ -1545,10 +1290,6 @@ static void window_unload(Window *window) {
   layer_destroy(effect_layer_get_layer(battery_meter_layer));
   layer_destroy(text_layer_get_layer(text_battery_layer));
   layer_destroy(text_layer_get_layer(text_connection_layer));
-  layer_destroy(text_layer_get_layer(ampm_layer));
-  layer_destroy(text_layer_get_layer(day_layer));
-  layer_destroy(text_layer_get_layer(week_layer));
-  layer_destroy(text_layer_get_layer(time_layer));
   layer_destroy(text_layer_get_layer(date_layer));
   layer_destroy(weather_layer);
   layer_destroy(splash_layer);
@@ -1593,7 +1334,6 @@ void handle_vibe_suppression() {
 void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 {
   *currentTime = *tick_time;
-  update_time_text();
   if ( currentTime->tm_min % 10 == 0) {
     dnd_period_check();
     hourvibe_period_check();
@@ -1614,7 +1354,6 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 
   if (units_changed & HOUR_UNIT) {
     request_timezone(NULL);
-    update_datetime_subtext();
     if (settings.vibe_hour && vibe_period_active) {
       generate_vibe(settings.vibe_hour); // will be suppressed if within DND
     }
@@ -1625,40 +1364,12 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
     layer_mark_dirty(calendar_layer);
   }
 
-  // calendar gets redrawn every time because time_layer is changed and all layers are redrawn together.
-}
-
-void handle_second_tick(struct tm *tick_time, TimeUnits units_changed)
-{
-  *currentTime = *tick_time;
-  // update the seconds layer(s)...
-  if (settings.show_week == 6) {
-    update_seconds_text(week_layer);
-  }
-  if (settings.show_am_pm == 6) {
-    update_seconds_text(ampm_layer);
-  }
-  // redraw everything else if the minute changes...
-  if (units_changed & MINUTE_UNIT) {
-    handle_minute_tick(tick_time, units_changed);
-  }
-}
-
-static int need_second_tick_handler(void) {
-  if ((settings.show_week == 6) || (settings.show_am_pm == 6)) { return 1; }
-  return 0; 
+  // calendar gets redrawn every time because datetime_layer is changed and all layers are redrawn together.
 }
 
 static void switch_tick_handler(void) {
-  tick_timer_service_unsubscribe(); // safe to call even before we've subscribed
-  seconds_shown = need_second_tick_handler();
-  if (seconds_shown) {
-    tick_timer_service_subscribe(SECOND_UNIT, &handle_second_tick);
-    if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Seconds handler enabled"); }
-  } else {
-    tick_timer_service_subscribe(MINUTE_UNIT, &handle_minute_tick);
-    if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Seconds handler disabled"); }
-  }
+  tick_timer_service_unsubscribe();
+  tick_timer_service_subscribe(MINUTE_UNIT, &handle_minute_tick);
 }
 
 void my_out_sent_handler(DictionaryIterator *sent, void *context) {
@@ -1680,6 +1391,12 @@ void in_weather_handler(DictionaryIterator *received, void *context) {
     if (appkey != NULL)     { weather.current = appkey->value->int16; }
     appkey = dict_find(received, AK_WEATHER_COND);
     if (appkey != NULL)     { strncpy(weather.condition, appkey->value->cstring, sizeof(weather.condition)-1); }
+    appkey = dict_find(received, AK_WEATHER_TEMP_MIN);
+    if (appkey != NULL)     { weather.temp_min = appkey->value->int16; }
+    appkey = dict_find(received, AK_WEATHER_TEMP_MAX);
+    if (appkey != NULL)     { weather.temp_max = appkey->value->int16; }
+    appkey = dict_find(received, AK_WEATHER_CITY);
+    if (appkey != NULL)     { strncpy(weather.city, appkey->value->cstring, sizeof(weather.city)-1); }
     layer_mark_dirty(weather_layer);
     if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather received [%d/%d]: %d, %s", weather.failures, weather.requests, weather.current, weather.condition); }
     if (weather.current == 999) {
@@ -1694,7 +1411,6 @@ void in_timezone_handler(DictionaryIterator *received, void *context) {
     Tuple *tz_offset = dict_find(received, AK_TIMEZONE_OFFSET);
     if (tz_offset != NULL) {
       timezone_offset = tz_offset->value->int8;
-      update_datetime_subtext();
     }
   if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Timezone received: %d", timezone_offset); }
 }
@@ -1768,52 +1484,6 @@ void in_configuration_handler(DictionaryIterator *received, void *context) {
       settings.date_format = FMT_DATE->value->uint8;
       update_date_text();
     }
-
-    // AK_STYLE_WEEK
-    Tuple *style_week = dict_find(received, AK_STYLE_WEEK);
-    if (style_week != NULL) {
-      settings.show_week = style_week->value->uint8;
-      if ( settings.show_week ) {
-        layer_set_hidden(text_layer_get_layer(week_layer), false);
-      }  else {
-        layer_set_hidden(text_layer_get_layer(week_layer), true);
-      }
-    }
-
-    // AK_INTL_FMT_WEEK == week format (strftime)
-    Tuple *FMT_WEEK = dict_find(received, AK_INTL_FMT_WEEK);
-    if (FMT_WEEK != NULL) {
-      settings.week_format = FMT_WEEK->value->uint8;
-    }
-
-    // AK_STYLE_DAY
-    Tuple *style_day = dict_find(received, AK_STYLE_DAY);
-    if (style_day != NULL) {
-      settings.show_day = style_day->value->uint8;
-      if ( settings.show_day ) {
-        layer_set_hidden(text_layer_get_layer(day_layer), false);
-      }  else {
-        layer_set_hidden(text_layer_get_layer(day_layer), true);
-      }
-    }
-
-    // AK_STYLE_AM_PM
-    Tuple *style_am_pm = dict_find(received, AK_STYLE_AM_PM);
-    if (style_am_pm != NULL) {
-      settings.show_am_pm = style_am_pm->value->uint8;
-      if ( settings.show_am_pm ) {
-        layer_set_hidden(text_layer_get_layer(ampm_layer), false);
-      }  else {
-        layer_set_hidden(text_layer_get_layer(ampm_layer), true);
-      }
-    }
-
-    if (need_second_tick_handler() != seconds_shown) {
-      switch_tick_handler();
-    }
-
-    // now that we've received any changes, redraw the subtext (which processes week, day, and AM/PM)
-    update_datetime_subtext();
 
     // AK_VIBE_PAT_DISCONNECT / AK_VIBE_PAT_CONNECT == vibration patterns for connect and disconnect
     Tuple *VIBE_PAT_D = dict_find(received, AK_VIBE_PAT_DISCONNECT);

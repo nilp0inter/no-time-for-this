@@ -83,8 +83,11 @@ typedef struct persist_adv_settings { // 243 bytes
 typedef struct weather_data {
   int16_t current;            // current temperature
   char condition[2];          // weather_conditions (mapped to single character in font)
-  int16_t requests;            // requests we've put out since last success
-  int16_t failures;            // failed responses that have come back since last success
+  int16_t temp_min;           // minimum temperature
+  int16_t temp_max;           // maximum temperature
+  char city[20];              // city name
+  int16_t requests;           // requests we've put out since last success
+  int16_t failures;           // failed responses that have come back since last success
 } __attribute__((__packed__)) weather_data;
 
 char *translate_error(AppMessageResult result);
@@ -96,26 +99,10 @@ void weather_layer_update_callback(Layer *me, GContext* ctx);
 void splash_layer_update_callback(Layer *me, GContext* ctx);
 void calendar_layer_update_callback(Layer *me, GContext* ctx);
 void update_date_text();
-void update_time_text();
 void update_day_text(TextLayer *which_layer);
 void update_month_text(TextLayer *which_layer);
-void update_week_text(TextLayer *which_layer);
-void update_ampm_text(TextLayer *which_layer);
-void update_seconds_text(TextLayer *which_layer);
-char * get_doy_text();
-char * get_dliy_text();
-void update_doy_text(TextLayer *which_layer);
-void update_dliy_text(TextLayer *which_layer);
-void update_doy_dliy_text(TextLayer *which_layer);
-void update_timezone_text(TextLayer *which_layer);
-void process_show_week();
-void process_show_day();
-void process_show_ampm();
 void position_connection_layer();
 void position_date_layer();
-void position_day_layer();
-void position_time_layer();
-void update_datetime_subtext();
 void datetime_layer_update_callback(Layer *me, GContext* ctx);
 void statusbar_visible();
 void toggle_weather();
@@ -146,7 +133,6 @@ static void window_load(Window *window);
 static void window_unload(Window *window);
 static void deinit(void);
 void handle_vibe_suppression();
-static int need_second_tick_handler(void);
 static void switch_tick_handler(void);
 void my_out_sent_handler(DictionaryIterator *sent, void *context);
 void my_out_fail_handler(DictionaryIterator *failed, AppMessageResult reason, void *context);

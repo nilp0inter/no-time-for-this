@@ -22,9 +22,9 @@
 
 <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true">
     <legend>Theme:</legend>
-        <input name="key0" id="key0-0" value="0" checked="checked" type="radio">
+        <input name="key0" id="key0-0" value="0" type="radio">
         <label for="key0-0">Dark</label>
-        <input name="key0" id="key0-1" value="1" type="radio">
+        <input name="key0" id="key0-1" value="1" checked="checked" type="radio">
         <label for="key0-1">Light</label>
 </fieldset>
 
@@ -50,11 +50,11 @@
 
 <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true">
     <legend>Disconnect Vibration:</legend>
-        <input name="key11" id="key11-0" value="0" type="radio">
+        <input name="key11" id="key11-0" value="0" checked="checked" type="radio">
         <label for="key11-0">None</label>
         <input name="key11" id="key11-1" value="1" type="radio">
         <label for="key11-1">1x</label>
-        <input name="key11" id="key11-2" value="2" checked="checked" type="radio">
+        <input name="key11" id="key11-2" value="2" type="radio">
         <label for="key11-2">2x</label>
         <input name="key11" id="key11-3" value="3" type="radio">
         <label for="key11-3">3x</label>
@@ -226,60 +226,12 @@
 
 <fieldset data-role="controlgroup" data-mini="true">
     <legend>Date Format:</legend>
-        <input name="key5" id="key5-0" value="0" checked="checked" type="radio">
+        <input name="key5" id="key5-236" value="236" checked="checked" type="radio">
+        <label for="key5-236">YYYY-MM-DD</label>
+        <input name="key5" id="key5-0" value="0" type="radio">
         <label for="key5-0">MMMM DD, YYYY</label>
         <input name="key5" id="key5-1" value="1" type="radio">
         <label for="key5-1">DD.MM.YYYY</label>
-</fieldset>
-
-<fieldset data-role="controlgroup" data-type="horizontal" data-mini="true">
-    <legend>Below Time, Left:</legend>
-        <input name="key8" id="key8-0" value="0" checked="checked" type="radio">
-        <label for="key8-0">-</label>
-        <input name="key8" id="key8-1" value="1" type="radio">
-        <label for="key8-1">Week</label>
-        <input name="key8" id="key8-2" value="2" type="radio">
-        <label for="key8-2">TZ</label>
-        <input name="key8" id="key8-3" value="3" type="radio">
-        <label for="key8-3">AM/PM</label>
-</fieldset>
-
-<fieldset data-role="controlgroup" data-type="horizontal" data-mini="true">
-    <legend>Below Time, Middle:</legend>
-        <input name="key7" id="key7-0" value="0" checked="checked" type="radio">
-        <label for="key7-0">-</label>
-        <input name="key7" id="key7-1" value="1" type="radio">
-        <label for="key7-1">Day</label>
-        <input name="key7" id="key7-2" value="2" type="radio">
-        <label for="key7-2">Mon</label>
-        <input name="key7" id="key7-3" value="3" type="radio">
-        <label for="key7-3">TZ</label>
-        <input name="key7" id="key7-4" value="4" type="radio">
-        <label for="key7-4">Week</label>
-        <input name="key7" id="key7-5" value="5" type="radio">
-        <label for="key7-5">AM/PM</label>
-</fieldset>
-
-<fieldset data-role="controlgroup" data-type="horizontal" data-mini="true">
-    <legend>Below Time, Right:</legend>
-        <input name="key6" id="key6-0" value="0" checked="checked" type="radio">
-        <label for="key6-0">-</label>
-        <input name="key6" id="key6-1" value="1" type="radio">
-        <label for="key6-1">AM/PM</label>
-        <input name="key6" id="key6-2" value="2" type="radio">
-        <label for="key6-2">TZ</label>
-        <input name="key6" id="key6-3" value="3" type="radio">
-        <label for="key6-3">Week</label>
-</fieldset>
-
-<fieldset data-role="controlgroup" data-mini="true">
-    <legend>Week Format:</legend>
-        <input name="key9" id="key9-0" value="0" checked="checked" type="radio">
-        <label for="key9-0">ISO 8601</label>
-        <input name="key9" id="key9-1" value="1" type="radio">
-        <label for="key9-1">Sun 1st of W1</label>
-        <input name="key9" id="key9-2" value="2" type="radio">
-        <label for="key9-2">Mon 1st of W1</label>
 </fieldset>
 
     </div>
@@ -304,9 +256,9 @@
 
 <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true">
     <legend>Start of Week:</legend>
-        <input name="key4" id="key4-0" value="0" checked="checked" type="radio">
+        <input name="key4" id="key4-0" value="0" type="radio">
         <label for="key4-0">S</label>
-        <input name="key4" id="key4-1" value="1" type="radio">
+        <input name="key4" id="key4-1" value="1" checked="checked" type="radio">
         <label for="key4-1">M</label>
         <input name="key4" id="key4-2" value="2" type="radio">
         <label for="key4-2">T</label>
@@ -340,10 +292,6 @@
           'vibe_hour':     Number( $("input[name=key3]:checked").val() ),
           'intl_dowo':     Number( $("input[name=key4]:checked").val() ),
           'intl_fmt_date': Number( $("input[name=key5]:checked").val() ),
-          'style_am_pm':   Number( $("input[name=key6]:checked").val() ),
-          'style_day':     Number( $("input[name=key7]:checked").val() ),
-          'style_week':    Number( $("input[name=key8]:checked").val() ),
-          'intl_fmt_week': Number( $("input[name=key9]:checked").val() ),
           'vibe_pat_disconnect': Number( $("input[name=key11]:checked").val() ),
           'vibe_pat_connect':    Number( $("input[name=key12]:checked").val() ),
           'trans_connected':    $("input[name=key527]").val(),
@@ -395,14 +343,6 @@
           $("input[name=key4]").checkboxradio('refresh');
           $("input[name=key5][id=key5-"+ls_pto["intl_fmt_date"]+"]").prop('checked',true);
           $("input[name=key5]").checkboxradio('refresh');
-          $("input[name=key6][id=key6-"+ls_pto["style_am_pm"]+"]").prop('checked',true);
-          $("input[name=key6]").checkboxradio('refresh');
-          $("input[name=key7][id=key7-"+ls_pto["style_day"]+"]").prop('checked',true);
-          $("input[name=key7]").checkboxradio('refresh');
-          $("input[name=key8][id=key8-"+ls_pto["style_week"]+"]").prop('checked',true);
-          $("input[name=key8]").checkboxradio('refresh');
-          $("input[name=key9][id=key9-"+ls_pto["intl_fmt_week"]+"]").prop('checked',true);
-          $("input[name=key9]").checkboxradio('refresh');
           if ("vibe_pat_disconnect" in ls_pto) {
             $("input[name=key11][id=key11-"+ls_pto["vibe_pat_disconnect"]+"]").prop('checked',true);
             $("input[name=key11]").checkboxradio('refresh');

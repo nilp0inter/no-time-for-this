@@ -282,7 +282,7 @@ function getWeatherFromWoeid(woeid) {
           temperature = condition.temp;
           icon = YWclimacon[condition.code];
           console.log("YW Weather: " + temperature + "; " + icon + " = " + condition.text);
-          sendWeather(Number(temperature), icon);
+          sendWeather(Number(temperature), icon, 999, 999, "");
         }
       } else {
         console.log("Error");
@@ -292,7 +292,7 @@ function getWeatherFromWoeid(woeid) {
   req.send(null);
 }
 
-function sendWeather(temp, cond_icon) {
+function sendWeather(temp, cond_icon, temp_min, temp_max, city) {
   if (isItNight() && cond_icon == CLIMACON['sun']) { cond_icon = getMoonIcon(); }
   if (cond_icon == CLIMACON['moon']) { cond_icon = getMoonIcon(); }
   console.log('Sending Weather: ' + temp + '  ' + cond_icon);
@@ -300,6 +300,9 @@ function sendWeather(temp, cond_icon) {
     message_type: 106,
     weather_temp: temp,
     weather_cond: cond_icon,
+    weather_temp_min: temp_min || 999,
+    weather_temp_max: temp_max || 999,
+    weather_city: city || "",
   });
 }
 
@@ -430,18 +433,7 @@ function fetchOWMWeather(latitude, longitude) {
           city = weatherResult.name;
 
             console.log("OWM Weather: " + temp + "; " + cond_icon + " = " + cond_main + ", " + cond_desc);
-/*
-          console.log('temp: ' + temp);
-          console.log('temp_min: ' + temp_min);
-          console.log('temp_max: ' + temp_max);
-          console.log('city:  ' + city);
-          console.log('cond: ' + cond_main);
-          console.log('cond_desc: ' + cond_desc);
-          console.log('cond_icon: ' + cond_icon);
-            weather_temp_min: temp_min,
-            weather_temp_max: temp_max,
-*/
-          sendWeather(temp, cond_icon);
+          sendWeather(temp, cond_icon, temp_min, temp_max, city);
         } else {
           for(var i in dataObj) {
                 console.log('dO:' + i + ' --- ' + dataObj[i]);
@@ -465,7 +457,7 @@ function weatherLocationSuccess(pos) {
 
 function locationError(err) {
   console.warn('Weather: location error (' + err.code + '): ' + err.message);
-  sendWeather(998, CLIMACON['compass']);
+  sendWeather(998, CLIMACON['compass'], 998, 998, "");
 }
 
 function isItNight() {
