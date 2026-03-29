@@ -1,0 +1,22 @@
+{
+  "name": "no-time-for-this",
+  "author": "nilp0inter",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "No Time For This",
+    "uuid": "44bb071a-83bb-401a-8bbe-13498eaf3a62",
+    "sdkVersion": "3",
+    "enableMultiJS": false,
+    "targetPlatforms": ["aplite", "basalt", "chalk", "diorite"],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [],
+    "resources": {
+      "media": []
+    }
+  }
+}

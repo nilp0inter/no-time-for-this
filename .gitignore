@@ -1,0 +1,4 @@
+build/
+.pebble/
+result
+result-*
