@@ -1,7 +1,7 @@
 {
   "name": "no-time-for-this",
   "author": "nilp0inter",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {},
@@ -14,9 +14,32 @@
     "watchapp": {
       "watchface": true
     },
-    "messageKeys": [],
+    "messageKeys": [
+      "TEMPERATURE",
+      "TEMP_MIN",
+      "TEMP_MAX",
+      "WIND_SPEED",
+      "WEATHER_CODE",
+      "SUNRISE",
+      "SUNSET",
+      "FORECAST_TEMP",
+      "FORECAST_TEMP_MIN",
+      "FORECAST_TEMP_MAX",
+      "FORECAST_WEATHER_CODE",
+      "FORECAST_WIND",
+      "FORECAST_SUNRISE",
+      "FORECAST_SUNSET",
+      "UPDATE_TIMESTAMP"
+    ],
     "resources": {
-      "media": []
-    }
+      "media": [
+        {
+          "type": "font",
+          "name": "FONT_WEATHER_ICONS_14",
+          "file": "fonts/weathericons-regular-webfont.ttf"
+        }
+      ]
+    },
+    "capabilities": ["location", "configurable"]
   }
 }

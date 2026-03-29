@@ -1,4 +1,7 @@
 build/
 .pebble/
+.task/
+.lock-waf_*
 result
 result-*
+*.pbw
