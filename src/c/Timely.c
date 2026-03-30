@@ -178,9 +178,10 @@ static bool showing_statusbar = true;
 #define DEVICE_WIDTH        144
 #define DEVICE_HEIGHT       168
 #define LAYOUT_STAT           0 // 20 tall
-#define LAYOUT_SLOT_TOP      24 // 72 tall
-#define LAYOUT_SLOT_BOT      96 // 72 tall, 4px gap above
-#define LAYOUT_SLOT_HEIGHT   72
+#define LAYOUT_SLOT_TOP      20 // no gap after status bar
+#define LAYOUT_SLOT_TOP_HEIGHT 58
+#define LAYOUT_SLOT_BOT      78
+#define LAYOUT_SLOT_BOT_HEIGHT 90
 #define STAT_BATT_LEFT       96 // LEFT + WIDTH + NIB_WIDTH <= 143
 #define STAT_BATT_TOP         4
 #define STAT_BATT_WIDTH      44 // should be divisible by 10, after subtracting 4 (2 pixels/side for the 'border')
@@ -194,7 +195,7 @@ static bool showing_statusbar = true;
 
 // relative coordinates (relative to SLOTs)
 #define REL_CLOCK_DATE_LEFT       2
-#define REL_CLOCK_DATE_TOP        0
+#define REL_CLOCK_DATE_TOP       40
 #define REL_CLOCK_DATE_HEIGHT    30 // date/time overlap, due to the way text is 'positioned'
 #define REL_CLOCK_DATE_WIDTH    140
 #define REL_CLOCK_TIME_LEFT       0
@@ -229,7 +230,7 @@ persist settings = {
   .grid       = 1, // yes
   .vibe_hour  = 0, // no
   .dayOfWeekOffset = 1, // 0 - 6, Sun - Sat (1 = Monday)
-  .date_format = 236, // YYYY-MM-DD
+  .date_format = 15, // Month, YYYY
   .show_am_pm  = 0, // no AM/PM       [0:Hide, 1:AM/PM, 2:TZ,    3:Week,  4:DoY,  5:DLiY,   6:Seconds]
   .show_day    = 0, // no day name    [0:Hide, 1:Day,   2:Month, 3:TZ,    4:Week, 5:AM/PM   6:DoY/DLiY]
   .show_week   = 0, // no week number [0:Hide, 1:Week,  2:TZ,    3:AM/PM, 4:DoY,  5:DLiY,   6:Seconds]
@@ -396,15 +397,15 @@ void weather_layer_update_callback(Layer *me, GContext* ctx) {
 
   setColors(ctx);
   // Weather icon - left side
-  graphics_draw_text(ctx, cond_current, climacons, GRect(4,22,34,34), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, cond_current, climacons, GRect(4,-2,34,34), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   // Weather description - under icon, half screen width
-  graphics_draw_text(ctx, weather.description, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0,52,76,18), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, weather.description, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0,24,76,16), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   // Real~Feels temperature - large, right of icon
-  graphics_draw_text(ctx, temp_current, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(40,20,102,32), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  graphics_draw_text(ctx, temp_current, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), GRect(40,-4,102,32), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   // Min/Max temps - right side
-  graphics_draw_text(ctx, temp_range, fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect(90,24,52,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
+  graphics_draw_text(ctx, temp_range, fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect(90,0,52,22), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
   // City name - bottom right, aligned with description
-  graphics_draw_text(ctx, weather.city, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(76,52,66,18), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
+  graphics_draw_text(ctx, weather.city, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(76,24,66,16), GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
   if (debug.general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather redrawing: %d, %s", weather.current, weather.condition); }
 }
 
@@ -432,33 +433,12 @@ void calendar_layer_update_callback(Layer *me, GContext* ctx) {
      *   daysAfterToday   = days after today (including any days from next month)
      *   daysVisNextMonth = days from the following month that are visible
      *
-     *  daysPriorToToday + 1 + daysAfterToday = 21, since we display exactly 3 weeks.
+     *  daysPriorToToday + 1 + daysAfterToday = 28, since we display exactly 4 weeks.
      */
-    int show_last = 1; // number of previous weeks to show 0-2
-    int show_next = 1; // number of future weeks to show 0-2
-    switch ( adv_settings.week_pattern ) {
-      case 0:
-        break;
-      case 1:
-        show_last = 2; show_next = 0;
-        break;
-      case 2:
-        show_last = 0; show_next = 2;
-        break;
-/* FIXME: not presently implemented to support this... need to calculate weeks and adjust how we do 'rows' below...
-      case 3:
-        show_last = 1; show_next = 0;
-        break;
-      case 4:
-        show_last = 0; show_next = 1;
-        break;
-      case 5:
-        show_last = 0; show_next = 0;
-        break;
-*/
-    }
+    int show_last = 1; // number of previous weeks to show
+    int show_next = 2; // number of future weeks to show
 
-    int calendar[21];
+    int calendar[28];
     int cellNum = 0;   // address for current day table cell: 0-20
     int daysVisPrevMonth = 0;
     int daysVisNextMonth = 0;
@@ -523,7 +503,7 @@ void calendar_layer_update_callback(Layer *me, GContext* ctx) {
     #define CAL_LEFT   2   // left side of calendar
     #define CAL_HEIGHT 18  // How tall rows should be depends on how many weeks there are
 
-    int weeks  =  3;  // always display 3 weeks: # previous, current, # next
+    int weeks  =  4;  // display 4 weeks: 1 previous, current, 2 next
         
     GFont current = cal_normal;
     int font_vert_offset = 0;
@@ -571,7 +551,7 @@ void calendar_layer_update_callback(Layer *me, GContext* ctx) {
     int week = 0;
     int specialRow = show_last+1;
     
-    for (int row = 1; row <= 3; row++) {
+    for (int row = 1; row <= 4; row++) {
       week++;
       for (int col = 0; col < CAL_DAYS; col++) {
         if ( row == specialRow && col == specialDay) {
@@ -720,6 +700,10 @@ void update_date_text() {
         strftime(date_text_2, sizeof(date_text_2), "'%y", currentTime); // YY
         snprintf(date_string, sizeof(date_string), "%s %s %s", date_text, lang_gen.abbrMonthsNames[currentTime->tm_mon], date_text_2); // insert Mon
         break;
+      case 15: // MMMM, YYYY (localized)
+        strftime(date_text, sizeof(date_text), "%Y", currentTime); // YYYY
+        snprintf(date_string, sizeof(date_string), "%s, %s", lang_months.monthsNames[currentTime->tm_mon], date_text); // Month, Year
+        break;
       }
     } else { // non-localized date formats, straight strftime function calls
       if ((settings.date_format>=195)&&(settings.date_format<=254)) { // load from table
@@ -756,22 +740,7 @@ void position_connection_layer() {
 }
 
 void position_date_layer() {
-  static int date_vert_offset = 0;
-  // potentially adjust the date position, depending on language/font
-  if ( strcmp(lang_gen.language,"RU") == 0 ) { // Unicode font w/ Cyrillic characters
-    if (showing_statusbar) {
-      date_vert_offset = -4;
-    } else {
-      date_vert_offset = 0;
-    }
-  } else { // Standard font (EN, etc.)
-    if (showing_statusbar) {
-      date_vert_offset = -9;
-    } else {
-      date_vert_offset = -5;
-    }
-  }
-  layer_set_frame( text_layer_get_layer(date_layer), GRect(REL_CLOCK_DATE_LEFT, REL_CLOCK_DATE_TOP + date_vert_offset, REL_CLOCK_DATE_WIDTH, REL_CLOCK_DATE_HEIGHT) );
+  layer_set_frame( text_layer_get_layer(date_layer), GRect(REL_CLOCK_DATE_LEFT, REL_CLOCK_DATE_TOP, REL_CLOCK_DATE_WIDTH, REL_CLOCK_DATE_HEIGHT) );
 }
 
 void datetime_layer_update_callback(Layer *me, GContext* ctx) {
@@ -1120,7 +1089,7 @@ static void set_unifont() {
   } else { // Standard font
     // set fonts...
     text_layer_set_font(text_connection_layer,fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_font(date_layer,fonts_get_system_font(FONT_KEY_GOTHIC_24));
+    text_layer_set_font(date_layer,fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
     // set fonts, for calendar
     cal_normal = fonts_get_system_font(FONT_KEY_GOTHIC_14); // fh = 16
     cal_bold   = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD); // fh = 22
@@ -1200,12 +1169,12 @@ static void window_load(Window *window) {
   layer_add_child(slot_status, statusbar);
   GRect stat_bounds = layer_get_bounds(statusbar);
 
-  slot_top = layer_create(GRect(0,LAYOUT_SLOT_TOP,DEVICE_WIDTH,LAYOUT_SLOT_HEIGHT));
+  slot_top = layer_create(GRect(0,LAYOUT_SLOT_TOP,DEVICE_WIDTH,LAYOUT_SLOT_TOP_HEIGHT));
   layer_set_update_proc(slot_top, slot_top_layer_update_callback);
   layer_add_child(window_layer, slot_top);
   GRect slot_top_bounds = layer_get_bounds(slot_top);
 
-  slot_bot = layer_create(GRect(0,LAYOUT_SLOT_BOT,DEVICE_WIDTH,LAYOUT_SLOT_HEIGHT));
+  slot_bot = layer_create(GRect(0,LAYOUT_SLOT_BOT,DEVICE_WIDTH,LAYOUT_SLOT_BOT_HEIGHT));
   layer_set_update_proc(slot_bot, slot_bot_layer_update_callback);
   layer_add_child(window_layer, slot_bot);
   GRect slot_bot_bounds = layer_get_bounds(slot_bot);
@@ -1246,7 +1215,7 @@ static void window_load(Window *window) {
   bottom_toggle = app_timer_register(2000, &toggle_slot_bottom, (void*)calendar_layer); // queue calendar to reappear in 2 seconds
 
   date_layer = text_layer_create( GRect(REL_CLOCK_DATE_LEFT, REL_CLOCK_DATE_TOP, REL_CLOCK_DATE_WIDTH, REL_CLOCK_DATE_HEIGHT) ); // see position_date_layer()
-  set_layer_attr_sfont(date_layer, FONT_KEY_GOTHIC_24, GTextAlignmentCenter);
+  set_layer_attr_sfont(date_layer, FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentCenter);
   position_date_layer(); // depends on font/language
   update_date_text();
   layer_add_child(datetime_layer, text_layer_get_layer(date_layer));
